@@ -56,4 +56,4 @@ function Get-AzureVMPrice
 #Get-AzureVMPrice -Cores 16 -Ram 125 -Location "East US" -OS "Windows"
 
 #Get-AzureVMPrice -Cores 16
-Get-AzureVMPrice -Ram 32
+#Get-AzureVMPrice -Ram 32 | gm
