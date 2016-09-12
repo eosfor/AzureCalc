@@ -237,6 +237,37 @@ Function New-DynamicParam {
 
 function Get-AzureVMPrice
 {
+<#
+.Synopsis
+   Gets a price for Azure VM using standard Azure Calculator API
+.DESCRIPTION
+   Gets a price for Azure VM using standard Azure Calculator API
+.EXAMPLE
+   Retrieves types of VMs with 4 CPUs
+   
+   Get-AzureVMPrice -Cores 4
+.EXAMPLE
+   Get types by number of Cores and RAM
+   
+   Get-AzureVMPrice -Cores 4 -Ram 16
+.EXAMPLE
+   Filter output by number of Cores, RAM, Location and OS
+   
+   Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
+
+.INPUTS
+   Inputs to this cmdlet (if any)
+.OUTPUTS
+   Output from this cmdlet (if any)
+.NOTES
+   General notes
+.COMPONENT
+   The component this cmdlet belongs to
+.ROLE
+   The role this cmdlet belongs to
+.FUNCTIONALITY
+   The functionality that best describes this cmdlet
+#>
   [CmdletBinding()]
   [OutputType([double])]
   Param
@@ -310,9 +341,7 @@ function Get-AzureVMPrice
 
   }
   Process
-  {  
-
-    
+  {      
     function filterByCores {
       $mCores = $coresList.keys | Sort-Object | Where-Object {$_ -ge $Cores} | Select-Object -first 1 # all having $cores
       $rCores = $mCores | ForEach-Object {$coresList[$_]} | % {
@@ -393,4 +422,4 @@ function Get-AzureVMPrice
 
 
 #Get-AzureVMPrice -Cores 2 -Ram 30 -Location 'West Europe' -OS Windows | sort price | fl *
-Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
+#Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
