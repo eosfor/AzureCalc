@@ -1,425 +1,141 @@
-﻿$script:request = Invoke-WebRequest -Uri https://azure.microsoft.com/api/v1/pricing/virtual-machines/calculator/?culture=en-us
-$script:offers = $script:request.Content | ConvertFrom-Json
-
-#updating formats
-Update-FormatData -PrependPath "$PSScriptRoot\AzureCalc.format.ps1xml"
-
-$script:licenceList = 'sles-basic',
-                      'sles-premium',
-                      'biztalk-standard',
-                      'biztalk-enterprise',
-                      'oracle-java',
-                      'rserver-enterprise',
-                      'redhat-ondemand',
-                      'sql-web',
-                      'sql-standard',
-                      'sql-enterprise', $null
-filter Skip-Null { $_|?{ $_ } }
-
-Function New-DynamicParam {
-  <#
-      .SYNOPSIS
-        Helper function to simplify creating dynamic parameters
-    
-      .DESCRIPTION
-        Helper function to simplify creating dynamic parameters
-        Example use cases:
-            Include parameters only if your environment dictates it
-            Include parameters depending on the value of a user-specified parameter
-            Provide tab completion and intellisense for parameters, depending on the environment
-        Please keep in mind that all dynamic parameters you create will not have corresponding variables created.
-           One of the examples illustrates a generic method for populating appropriate variables from dynamic parameters
-           Alternatively, manually reference $PSBoundParameters for the dynamic parameter value
-      .NOTES
-        Credit to http://jrich523.wordpress.com/2013/05/30/powershell-simple-way-to-add-dynamic-parameters-to-advanced-function/
-            Added logic to make option set optional
-            Added logic to add RuntimeDefinedParameter to existing DPDictionary
-            Added a little comment based help
-        Credit to BM for alias and type parameters and their handling
-      .PARAMETER Name
-        Name of the dynamic parameter
-      .PARAMETER Type
-        Type for the dynamic parameter.  Default is string
-      .PARAMETER Alias
-        If specified, one or more aliases to assign to the dynamic parameter
-      .PARAMETER ValidateSet
-        If specified, set the ValidateSet attribute of this dynamic parameter
-      .PARAMETER Mandatory
-        If specified, set the Mandatory attribute for this dynamic parameter
-      .PARAMETER ParameterSetName
-        If specified, set the ParameterSet attribute for this dynamic parameter
-      .PARAMETER Position
-        If specified, set the Position attribute for this dynamic parameter
-      .PARAMETER ValueFromPipelineByPropertyName
-        If specified, set the ValueFromPipelineByPropertyName attribute for this dynamic parameter
-      .PARAMETER HelpMessage
-        If specified, set the HelpMessage for this dynamic parameter
-    
-      .PARAMETER DPDictionary
-        If specified, add resulting RuntimeDefinedParameter to an existing RuntimeDefinedParameterDictionary (appropriate for multiple dynamic parameters)
-        If not specified, create and return a RuntimeDefinedParameterDictionary (appropriate for a single dynamic parameter)
-        See final example for illustration
-      .EXAMPLE
-        
-        function Show-Free
-        {
-            [CmdletBinding()]
-            Param()
-            DynamicParam {
-                $options = @( gwmi win32_volume | %{$_.driveletter} | sort )
-                New-DynamicParam -Name Drive -ValidateSet $options -Position 0 -Mandatory
-            }
-            begin{
-                #have to manually populate
-                $drive = $PSBoundParameters.drive
-            }
-            process{
-                $vol = gwmi win32_volume -Filter "driveletter='$drive'"
-                "{0:N2}% free on {1}" -f ($vol.Capacity / $vol.FreeSpace),$drive
-            }
-        } #Show-Free
-        Show-Free -Drive <tab>
-      # This example illustrates the use of New-DynamicParam to create a single dynamic parameter
-      # The Drive parameter ValidateSet populates with all available volumes on the computer for handy tab completion / intellisense
-      .EXAMPLE
-      # I found many cases where I needed to add more than one dynamic parameter
-      # The DPDictionary parameter lets you specify an existing dictionary
-      # The block of code in the Begin block loops through bound parameters and defines variables if they don't exist
-        Function Test-DynPar{
-            [cmdletbinding()]
-            param(
-                [string[]]$x = $Null
-            )
-            DynamicParam
-            {
-                #Create the RuntimeDefinedParameterDictionary
-                $Dictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
-        
-                New-DynamicParam -Name AlwaysParam -ValidateSet @( gwmi win32_volume | %{$_.driveletter} | sort ) -DPDictionary $Dictionary
-                #Add dynamic parameters to $dictionary
-                if($x -eq 1)
-                {
-                    New-DynamicParam -Name X1Param1 -ValidateSet 1,2 -mandatory -DPDictionary $Dictionary
-                    New-DynamicParam -Name X1Param2 -DPDictionary $Dictionary
-                    New-DynamicParam -Name X3Param3 -DPDictionary $Dictionary -Type DateTime
-                }
-                else
-                {
-                    New-DynamicParam -Name OtherParam1 -Mandatory -DPDictionary $Dictionary
-                    New-DynamicParam -Name OtherParam2 -DPDictionary $Dictionary
-                    New-DynamicParam -Name OtherParam3 -DPDictionary $Dictionary -Type DateTime
-                }
-        
-                #return RuntimeDefinedParameterDictionary
-                $Dictionary
-            }
-            Begin
-            {
-                #This standard block of code loops through bound parameters...
-                #If no corresponding variable exists, one is created
-                    #Get common parameters, pick out bound parameters not in that set
-                    Function _temp { [cmdletbinding()] param() }
-                    $BoundKeys = $PSBoundParameters.keys | Where-Object { (get-command _temp | select -ExpandProperty parameters).Keys -notcontains $_}
-                    foreach($param in $BoundKeys)
-                    {
-                        if (-not ( Get-Variable -name $param -scope 0 -ErrorAction SilentlyContinue ) )
-                        {
-                            New-Variable -Name $Param -Value $PSBoundParameters.$param
-                            Write-Verbose "Adding variable for dynamic parameter '$param' with value '$($PSBoundParameters.$param)'"
-                        }
-                    }
-                #Appropriate variables should now be defined and accessible
-                    Get-Variable -scope 0
-            }
-        }
-      # This example illustrates the creation of many dynamic parameters using New-DynamicParam
-        # You must create a RuntimeDefinedParameterDictionary object ($dictionary here)
-        # To each New-DynamicParam call, add the -DPDictionary parameter pointing to this RuntimeDefinedParameterDictionary
-        # At the end of the DynamicParam block, return the RuntimeDefinedParameterDictionary
-        # Initialize all bound parameters using the provided block or similar code
-      .FUNCTIONALITY
-        PowerShell Language
-  #>
-  [CmdletBinding()]
-  param(
-    
-    [string]
-    $Name,
-    
-    [System.Type]
-    $Type = [string],
-
-    [string[]]
-    $Alias = @(),
-
-    [string[]]
-    $ValidateSet,
-    
-    [switch]
-    $Mandatory,
-    
-    [string]
-    $ParameterSetName="__AllParameterSets",
-    
-    [int]
-    $Position,
-    
-    [switch]
-    $ValueFromPipelineByPropertyName,
-    
-    [string]
-    $HelpMessage,
-
-    [validatescript({
-          if(-not ( $_ -is [System.Management.Automation.RuntimeDefinedParameterDictionary] -or -not $_) )
-          {
-            Throw "DPDictionary must be a System.Management.Automation.RuntimeDefinedParameterDictionary object, or not exist"
-          }
-          $True
-    })]
-    $DPDictionary = $false
- 
-  )
-  process {
-    #Create attribute object, add attributes, add to collection   
-        $ParamAttr = New-Object System.Management.Automation.ParameterAttribute
-        $ParamAttr.ParameterSetName = $ParameterSetName
-        if($mandatory)
-        {
-            $ParamAttr.Mandatory = $True
-        }
-        if($Position -ne $null)
-        {
-            $ParamAttr.Position=$Position
-        }
-        if($ValueFromPipelineByPropertyName)
-        {
-            $ParamAttr.ValueFromPipelineByPropertyName = $True
-        }
-        if($HelpMessage)
-        {
-            $ParamAttr.HelpMessage = $HelpMessage
-        }
- 
-        $AttributeCollection = New-Object 'Collections.ObjectModel.Collection[System.Attribute]'
-        $AttributeCollection.Add($ParamAttr)
-    
-    #param validation set if specified
-        if($ValidateSet)
-        {
-            $ParamOptions = New-Object System.Management.Automation.ValidateSetAttribute -ArgumentList $ValidateSet
-            $AttributeCollection.Add($ParamOptions)
-        }
-
-    #Aliases if specified
-        if($Alias.count -gt 0) {
-            $ParamAlias = New-Object System.Management.Automation.AliasAttribute -ArgumentList $Alias
-            $AttributeCollection.Add($ParamAlias)
-        }
-
- 
-    #Create the dynamic parameter
-        $Parameter = New-Object -TypeName System.Management.Automation.RuntimeDefinedParameter -ArgumentList @($Name, $Type, $AttributeCollection)
-    
-    #Add the dynamic parameter to an existing dynamic parameter dictionary, or create the dictionary and add it
-        if($DPDictionary)
-        {
-            $DPDictionary.Add($Name, $Parameter)
-        }
-        else
-        {
-            $Dictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
-            $Dictionary.Add($Name, $Parameter)
-            $Dictionary
-        }
-  }
+﻿function Get-AzureCalcTier($AzureCalcData = $script:rawdata) {
+  $AzureCalcData.Tiers
 }
 
-function Get-AzureVMPrice
-{
-<#
-.Synopsis
-   Gets a price for Azure VM using standard Azure Calculator API
-.DESCRIPTION
-   Gets a price for Azure VM using standard Azure Calculator API
-.EXAMPLE
-   Retrieves types of VMs with 4 CPUs
-   
-   Get-AzureVMPrice -Cores 4
-.EXAMPLE
-   Get types by number of Cores and RAM
-   
-   Get-AzureVMPrice -Cores 4 -Ram 16
-.EXAMPLE
-   Filter output by number of Cores, RAM, Location and OS
-   
-   Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
+function Get-AzureCalcType($AzureCalcData = $script:rawdata) {
+  $AzureCalcData.Types
+}
 
-.INPUTS
-   Inputs to this cmdlet (if any)
-.OUTPUTS
-   Output from this cmdlet (if any)
-.NOTES
-   General notes
-.COMPONENT
-   The component this cmdlet belongs to
-.ROLE
-   The role this cmdlet belongs to
-.FUNCTIONALITY
-   The functionality that best describes this cmdlet
-#>
+function Get-AzureCalcSize($AzureCalcData = $script:rawdata) {
+  $AzureCalcData.Sizes
+}
+
+function Get-AzureCalcSoftwareLicense($AzureCalcData = $script:rawdata) {
+  $AzureCalcData.softwareLicenses
+}
+
+function Get-AzureCalcRegion($AzureCalcData = $script:rawdata) {
+  $AzureCalcData.regions
+}
+
+function Get-AzureCalcData {
   [CmdletBinding()]
-  [OutputType([double])]
-  Param
-  (
-    # Param1 help description
-    [Parameter(Mandatory=$false, Parametersetname = "Cores" ,Position=0)]
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRam" ,Position=0)]
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRamLocOS" ,Position=0)]
-    $Cores,
-    [Parameter(Mandatory=$false, Parametersetname = "Ram" ,Position=1)]
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRam" ,Position=1)]
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRamLocOS" ,Position=1)]
-    [double]$Ram,
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRamLocOS" ,Position=2)]
-    [ValidateSet('East US',
-                  'West US',
-                  'North Central US',
-                  'South Central US',
-                  'North Europe',
-                  'West Europe',
-                  'Southeast Asia',
-                  'East Asia',
-                  'Japan East',
-                  'Japan West',
-                  'Brazil South',
-                  'East US 2',
-                  'Central US',
-                  'US Gov Virginia',
-                  'US Gov Iowa',
-                  'Australia East',
-                  'Australia Southeast',
-                  'Canada East',
-                  'Canada Central',
-                  'UK West',
-                  'UK South',
-                  'West US 2',
-                  'West Central US')]
-    $Location,
-    [Parameter(Mandatory=$true, Parametersetname = "CoresRamLocOS" ,Position=3)]
-    [ValidateSet('Linux',
-                  'SUSE Linux',
-                  'Ubuntu',
-                  'CentOS',
-                  'Red Hat Enterprise Linux',
-                  'Windows',
-                  'SQL Server',
-                  'Biztalk',
-                  'Oracle',
-                  'R Server')]
-    $OS,
-    [Parameter(Mandatory=$false, Parametersetname = "CoresRamLocOS" ,Position=4)]
-    [ValidateSet({$script:licenceList})]
-    $Licence = $null,
-    [Parameter(Mandatory=$false, Parametersetname = "CoresRamLocOS" ,Position=5)]
-    [string]$Tier = "Standard"
-  )
-
-  Begin
-  {
-    $coresList = @{}
-    $ramList = @{}
-    ($script:offers.offers | Get-Member -MemberType Properties).Name |  ForEach-Object {$coresList[[int]"$($offers.offers."$_".cores)"] += [array](@{"$_" = $offers.offers."$_"})}
-    ($script:offers.offers | Get-Member -MemberType Properties).Name |  ForEach-Object {$ramList[[double]"$($offers.offers."$_".ram)"] += [array](@{"$_" = $offers.offers."$_"})}
-    
-    if($PSCmdlet.ParameterSetName -eq 'CoresRamLocOS'){
-      $locSlug = ($script:offers.regions | Where-Object displayName -EQ $Location).slug
-      $osSlug = ($script:offers.types | Where-Object displayName -EQ $OS).slug
-    
-      $vmID = ($locSlug,$osSlug,$Licence | skip-null) -join "-"
-    }
-
-  }
-  Process
-  {      
-    function filterByCores {
-      $mCores = $coresList.keys | Sort-Object | Where-Object {$_ -ge $Cores} | Select-Object -first 1 # all having $cores
-      $rCores = $mCores | ForEach-Object {$coresList[$_]} | % {
-        $curr = $_
-                                                                $_.keys | % {
-                                                                  $obj = [pscustomobject]$curr[$_]; 
-                                                                  $obj | Add-Member -MemberType NoteProperty -Name "Size" -Value $_ -Force
-                                                                  $obj.psobject.TypeNames.Insert(0, "AzureCalc.AzureVmPrice")
-                                                                  $obj
-                                                                } 
-                                                              }
-      $rCores
-    }
-    function filterByRam {
-      [double]$mRam = $ramList.keys | Sort-Object | Where-Object {$_ -ge $Ram} # | Sort-Object | Select-Object -first 1 # all having $ram     
-      $rRam = $mRam | ForEach-Object {$ramList[$_]} | % {
-                                                          $curr = $_
-                                                          $_.keys | % {
-                                                            $obj = [pscustomobject]$curr[$_]; 
-                                                            $obj | Add-Member -MemberType NoteProperty -Name "Size" -Value $_ -Force
-                                                            $obj.psobject.TypeNames.Insert(0, "AzureCalc.AzureVmPrice")
-                                                            $obj
-                                                          } 
-                                                        }
-      $rRam
-    }
-    function filterOSBySlug($ObjToFilter) {
-      $ObjToFilter | % {
-        if ($_.Prices | gm -MemberType Properties -Name $vmID) {
-            $price = $_.prices."$vmID"
-            $ret = 
-            [pscustomobject]@{
-            Size = $_.Size;
-            Prices = ($_.Prices | select -Property $vmID);
-            Skus = ($_.Skus | select -Property $vmID);
-            Price = $price;
-            Cores = $_.Cores;
-            DiskSize = $_.DiskSize;
-            Ram = $_.Ram
-          }
-          $ret.psobject.TypeNames.Insert(0, "AzureCalc.AzureVmPrice")
-          $ret
-        }                
+  param()
+  $request = Invoke-WebRequest -Uri https://azure.microsoft.com/api/v1/pricing/virtual-machines/calculator/?culture=en-us
+  Set-Variable -Name rawdata -Value  ($request.Content | ConvertFrom-Json) -Option ReadOnly -Scope script
+  
+  if ($script:rawdata) {
+    $script:calcdata = @()
+    foreach ($type in Get-AzureCalcType) {
+      foreach ($size in Get-AzureCalcSize) {
+        foreach ($tier in Get-AzureCalcTier) {
+            $indexName = "$($type.slug)-$($size.slug)-$($tier.slug)"
+            if ($script:rawdata.offers.$indexName) {
+            $script:calcdata +=
+              [pscustomobject]@{
+                Cores = $script:rawdata.offers.$indexName.cores
+                Ram = $script:rawdata.offers.$indexName.Ram
+                DiskSize = $script:rawdata.offers.$indexName.DiskSize
+                Prices = $script:rawdata.offers.$indexName.Prices
+                Skus = $script:rawdata.offers.$indexName.Skus
+                Type = $type.slug
+                Size = $size.slug
+                Tier = $tier.slug
+                Index = $indexName
+              }
+            }
+        }
       }
     }
-    
-    if($PSCmdlet.ParameterSetName -eq 'Cores'){
-      filterByCores
-    }
-    
-    if($PSCmdlet.ParameterSetName -eq 'Ram'){
-      filterByRam
-    }
+  }
 
-    if($PSCmdlet.ParameterSetName -eq 'CoresRam'){
-      filterByCores | sort ram | where ram -ge $Ram
+
+}
+
+function Get-AzureCalcPrice {
+  <#
+      .SYNOPSIS
+      This function  is used to analyze Azure Calc data extracted by the REST call 
+      .DESCRIPTION
+      This function  is used to analyze Azure Calc data extracted by the REST call. It can then filter the data by CPU, RAM, OS Type, VM  Size, Region
+      .EXAMPLE
+      Get-AzureCalcData
+      Get-AzureCalcPrice -Size A4v2 -Region asia-pacific-southeast, canada-east, us-east, us-west | ft -AutoSize
+  #>
+  [cmdletbinding()]
+  param (
+    [Parameter()]
+    [int]$CPU, 
+    
+    [Parameter()]
+    [int]$RAM,
+    
+    [Parameter()]
+    [ValidateScript({$_ -in (Get-AzureCalcType).slug})]
+    [string]$Type,
+    
+    [Parameter()]
+    [ValidateScript({$_ -in (Get-AzureCalcSize).slug})]
+    [string]$Size,
+    
+    [Parameter()]
+    [ValidateScript({$_ -in (Get-AzureCalcRegion).slug})]
+    [string[]]$Region,
+    
+    [Parameter(mandatory = $false)] 
+    $CalcData =  $script:calcdata
+  )
+  begin{
+    $cpuFilter = {param($objectSet)  $objectSet | ? {$_.Cores -eq $CPU} } 
+    $ramFilter = {param($objectSet)  $objectSet | ? {$_.Ram -eq $RAM} }
+    $typeFilter = {param($objectSet)  $objectSet | ? {$_.Type -eq $Type} }
+    $sizeFilter = {param($objectSet)  $objectSet | ? {$_.Size -eq $Size} }
+    $regionFilter = {param($objectSet)  $objectSet | ? { [bool]$r -OR ($Region | % {$_.Prices.keys -contains $_ }); $r } } 
+  }
+  process{
+    $filters = @()
+    if ($CPU){
+      $filters += $cpuFilter
+    }
+    if ($RAM){
+      $filters += $ramFilter
+    }
+    if ($Type){
+      $filters += $typeFilter
+    }
+    if ($Size){
+      $filters += $sizeFilter 
     }
     
-    if($PSCmdlet.ParameterSetName -eq 'CoresRamLocOS'){
-      $ret = (filterOSBySlug (filterByCores | sort ram | where ram -ge $Ram | select -First 2)),
-             (filterOSBySlug (filterByCores | sort ram -Descending | where ram -le $Ram | select -First 2))
+    if ($Region){
+      $filters += $regionFilter 
+    }
+    
+    $ret = $CalcData
+    foreach ($f in $filters){
+      $ret = & $f $ret
+    }
+    
+    if ($Region) {
+      foreach ($el in $ret) {
+        $res =  [ordered]@{
+          Index = $el.index
+          Type = $el.type
+          Size = $el.size
+          Cores = $el.Cores
+          Ram = $el.Ram
+          DiskSize = $el.DiskSize          
+        }
+          
+        foreach ($r in $Region){
+          $res.$r = $el.Prices.$r
+        }
+          
+        [pscustomobject] $res
+      }
+    }
+    else{
       $ret
     }
   }
 }
-
-
-
-#Get-AzureVMPrice -Cores 16
-#Get-AzureVMPrice -Ram 14
-#Get-AzureVMPrice -Cores 16 -Ram 50
-#$k = Get-AzureVMPrice -Cores 16 -Ram 50 -Location "East US 2" -OS Windows
-
-
-#$k[0].prices
-#$k[0].Skus
-
-
-
-#Get-AzureVMPrice -Cores 2 -Ram 30 -Location 'West Europe' -OS Windows | sort price | fl *
-#Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
