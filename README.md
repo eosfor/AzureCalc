@@ -2,7 +2,8 @@
 Quick and dirty way to automate costing estimation calculations for Azure using Azure Calculator API.
 
 Samples
-```
-Get-AzureVMPrice -Cores 2 -Ram 30 -Location 'West Europe' -OS Windows
-Get-AzureVMPrice -Cores 4 -Ram 16 -Location 'West Europe' -OS Windows | sort price
+```powershell code
+Get-AzureCalcData
+Get-AzureCalcPrice -Size A4v2 -Region asia-pacific-southeast, canada-east, us-east, us-west | ft -AutoSize
+Get-AzureCalcPrice -Type Windows -Size a4v2 -Region asia-pacific-east,  europe-west, us-east | ft -AutoSize
 ```
