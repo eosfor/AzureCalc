@@ -1,7 +1,10 @@
 # AzureCalc
 Quick and dirty way to automate costing estimation calculations for Azure using Azure Calculator API.
-
-Samples
+# Install
+```powershell code
+Install-Module -Name AzureCalc
+```
+# Samples
 ```powershell code
 Get-AzureCalcData
 Get-AzureCalcPrice -Size A4v2 -Region asia-pacific-southeast, canada-east, us-east, us-west | ft -AutoSize
