@@ -64,25 +64,28 @@ function Get-AzureCalcPrice {
   #>
     [cmdletbinding()]
     param (
-        [Parameter()]
+        [Parameter(ParameterSetName="hardware")]
         [int]$CPU, 
     
-        [Parameter()]
+        [Parameter(ParameterSetName="hardware")]
         [int]$RAM,
     
-        [Parameter()]
+        [Parameter(ParameterSetName="hardware")]
         [ValidateScript( {$_ -in (Get-AzureCalcType).slug})]
         [string]$Type,
     
-        [Parameter()]
+        [Parameter(ParameterSetName="size")]
         [ValidateScript( {$_ -in (Get-AzureCalcSize).slug})]
         [string]$Size,
     
-        [Parameter()]
+        [Parameter(ParameterSetName="hardware")]
+        [Parameter(ParameterSetName="size")]
         [ValidateScript( {$_ -in (Get-AzureCalcRegion).slug})]
         [string[]]$Region,
     
         [Parameter(mandatory = $false)] 
+        [Parameter(ParameterSetName="hardware")]
+        [Parameter(ParameterSetName="size")]
         $CalcData = $script:calcdata
     )
     begin {
