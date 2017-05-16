@@ -103,25 +103,25 @@ function Get-AzureCalcPrice {
     begin {
         function getClosest ($objectList, $propName, $num) {
             $diff = [math]::Abs(($num - ($objectList.$propName)[0]))
-            $objectList | % {$r = @{}} {
+            $objectList | ForEach-Object {$r = @{}} {
                 $currObj = $_
                 $curr = $_.$propName
                 $abs = [math]::Abs(($curr - $num))
                 $r.$Abs = $r.$Abs + @($currObj)
             } { 
-                $minValueKey = ($r.Keys | sort | select -First 1)
-                $minByProperty = $r[$minValueKey] | where "$propname" -le $num
+                $minValueKey = ($r.Keys | Sort-Object | Select-Object -First 1)
+                $minByProperty = $r[$minValueKey] | Where-Object "$propname" -le $num
                 $minByProperty
             }
         }
         $cpuFilter = if (! $ShowClosestMatch.IsPresent) {{param($objectSet)  $objectSet | Where-Object {$_.Cores -eq $CPU} }} 
-                     else { {param($objectSet) $t = getClosest $objectSet 'Cores' $CPU; $t} }
+        else { {param($objectSet) $t = getClosest $objectSet 'Cores' $CPU; $t} }
         $ramFilter = if (! $ShowClosestMatch.IsPresent) {{param($objectSet)  $objectSet | Where-Object {$_.Ram -eq $RAM} }}
-                     else { {param($objectSet) $t = getClosest $objectSet 'Ram' $RAM; $t}  }
+        else { {param($objectSet) $t = getClosest $objectSet 'Ram' $RAM; $t}  }
         $typeFilter = {param($objectSet)  $objectSet | Where-Object {$_.Type -eq $Type} }
         $sizeFilter = {param($objectSet)  $objectSet | Where-Object {$_.Size -eq $Size} }
         $tierFilter = {param($objectSet)  $objectSet | Where-Object {$_.Tier -eq $Tier} }
-        $regionFilter = {param($objectSet)  $objectSet | Where-Object { [bool]$r -OR ($Region | % {$_.Prices.keys -contains $_ }); $r } } 
+        $regionFilter = {param($objectSet)  $objectSet | Where-Object { [bool]$r -OR ($Region | ForEach-Object {$_.Prices.keys -contains $_ }); $r } } 
     }
     process {
         $filters = @()
