@@ -61,39 +61,67 @@ function Get-AzureCalcPrice {
       .EXAMPLE
       Get-AzureCalcData
       Get-AzureCalcPrice -Size A4v2 -Region asia-pacific-southeast, canada-east, us-east, us-west | ft -AutoSize
+      $r = 'us-east', 'us-east-2'
+      Get-AzureCalcPrice   -Region $r -CPU 3 -ram 10 -Type windows -Tier standard -ShowClosestMatch | ft -AutoSize
+      Get-AzureCalcPrice   -Region $r -CPU 8 -ram 14 -Type windows -Tier standard | ft -AutoSize
   #>
     [cmdletbinding()]
     param (
-        [Parameter(ParameterSetName="hardware")]
+        [Parameter(ParameterSetName = "hardware")]
         [int]$CPU, 
     
-        [Parameter(ParameterSetName="hardware")]
+        [Parameter(ParameterSetName = "hardware")]
         [int]$RAM,
     
-        [Parameter(ParameterSetName="hardware")]
+        [Parameter(ParameterSetName = "hardware")]
         [ValidateScript( {$_ -in (Get-AzureCalcType).slug})]
         [string]$Type,
     
-        [Parameter(ParameterSetName="size")]
+        [Parameter(ParameterSetName = "size")]
         [ValidateScript( {$_ -in (Get-AzureCalcSize).slug})]
         [string]$Size,
     
-        [Parameter(ParameterSetName="hardware")]
-        [Parameter(ParameterSetName="size")]
+        [Parameter(ParameterSetName = "hardware")]
+        [Parameter(ParameterSetName = "size")]
         [ValidateScript( {$_ -in (Get-AzureCalcRegion).slug})]
         [string[]]$Region,
+
+        [Parameter(ParameterSetName = "hardware")]
+        [Parameter(ParameterSetName = "size")]
+        [ValidateScript( {$_ -in (Get-AzureCalcTier).slug})]
+        [string[]]$Tier,
+
+        [Parameter(mandatory = $false)]
+        [Parameter(ParameterSetName = "hardware")]
+        [switch]$ShowClosestMatch,
     
         [Parameter(mandatory = $false)] 
-        [Parameter(ParameterSetName="hardware")]
-        [Parameter(ParameterSetName="size")]
+        [Parameter(ParameterSetName = "hardware")]
+        [Parameter(ParameterSetName = "size")]
         $CalcData = $script:calcdata
     )
     begin {
-        $cpuFilter = {param($objectSet)  $objectSet | ? {$_.Cores -eq $CPU} } 
-        $ramFilter = {param($objectSet)  $objectSet | ? {$_.Ram -eq $RAM} }
-        $typeFilter = {param($objectSet)  $objectSet | ? {$_.Type -eq $Type} }
-        $sizeFilter = {param($objectSet)  $objectSet | ? {$_.Size -eq $Size} }
-        $regionFilter = {param($objectSet)  $objectSet | ? { [bool]$r -OR ($Region | % {$_.Prices.keys -contains $_ }); $r } } 
+        function getClosest ($objectList, $propName, $num) {
+            $diff = [math]::Abs(($num - ($objectList.$propName)[0]))
+            $objectList | % {$r = @{}} {
+                $currObj = $_
+                $curr = $_.$propName
+                $abs = [math]::Abs(($curr - $num))
+                $r.$Abs = $r.$Abs + @($currObj)
+            } { 
+                $minValueKey = ($r.Keys | sort | select -First 1)
+                $minByProperty = $r[$minValueKey] | where "$propname" -le $num
+                $minByProperty
+            }
+        }
+        $cpuFilter = if (! $ShowClosestMatch.IsPresent) {{param($objectSet)  $objectSet | Where-Object {$_.Cores -eq $CPU} }} 
+                     else { {param($objectSet) $t = getClosest $objectSet 'Cores' $CPU; $t} }
+        $ramFilter = if (! $ShowClosestMatch.IsPresent) {{param($objectSet)  $objectSet | Where-Object {$_.Ram -eq $RAM} }}
+                     else { {param($objectSet) $t = getClosest $objectSet 'Ram' $RAM; $t}  }
+        $typeFilter = {param($objectSet)  $objectSet | Where-Object {$_.Type -eq $Type} }
+        $sizeFilter = {param($objectSet)  $objectSet | Where-Object {$_.Size -eq $Size} }
+        $tierFilter = {param($objectSet)  $objectSet | Where-Object {$_.Tier -eq $Tier} }
+        $regionFilter = {param($objectSet)  $objectSet | Where-Object { [bool]$r -OR ($Region | % {$_.Prices.keys -contains $_ }); $r } } 
     }
     process {
         $filters = @()
@@ -108,6 +136,9 @@ function Get-AzureCalcPrice {
         }
         if ($Size) {
             $filters += $sizeFilter 
+        }
+        if ($Tier) {
+            $filters += $tierFilter 
         }
     
         if ($Region) {
