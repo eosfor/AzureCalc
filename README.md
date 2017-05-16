@@ -1,5 +1,8 @@
 # AzureCalc
 Quick and dirty way to automate costing estimation calculations for Azure using Azure Calculator API.
+
+[![Build status](https://ci.appveyor.com/api/projects/status/2rerdsc4j1g2dl94?svg=true)](https://ci.appveyor.com/project/eosfor/azurecalc)
+
 # Install
 ```powershell code
 Install-Module -Name AzureCalc
