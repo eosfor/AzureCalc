@@ -20,6 +20,4 @@ Get-AzureCalcData
 Get-AzureCalcPrice -Size F8 -Region australia-east -Tier standard -Type windows | ft -AutoSize
 Get-AzureCalcPrice -Size F2 -Region australia-east -Tier standard -Type windows | ft -AutoSize
 Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
-Get-AzureCalcPrice -CPU (2..16) -RAM (4..20) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
-Get-AzureCalcPrice -CPU (4..8) -RAM (4..32) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
 ```
