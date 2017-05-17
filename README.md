@@ -8,8 +8,18 @@ Quick and dirty way to automate costing estimation calculations for Azure using 
 Install-Module -Name AzureCalc
 ```
 # Samples
+Simple set of examplese
 ```powershell code
 Get-AzureCalcData
 Get-AzureCalcPrice -Size A4v2 -Region asia-pacific-southeast, canada-east, us-east, us-west | ft -AutoSize
 Get-AzureCalcPrice -Type Windows -Size a4v2 -Region asia-pacific-east,  europe-west, us-east | ft -AutoSize
+```
+More complex variants
+```powershell code
+Get-AzureCalcData
+Get-AzureCalcPrice -Size F8 -Region australia-east -Tier standard -Type windows | ft -AutoSize
+Get-AzureCalcPrice -Size F2 -Region australia-east -Tier standard -Type windows | ft -AutoSize
+Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
+Get-AzureCalcPrice -CPU (2..16) -RAM (4..20) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
+Get-AzureCalcPrice -CPU (4..8) -RAM (4..32) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
 ```
