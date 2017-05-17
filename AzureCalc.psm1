@@ -75,7 +75,8 @@ function Get-AzureCalcPrice {
       Get-AzureCalcPrice -CPU (8..16) -Region australia-east -Tier standard -Type windows | ft -AutoSize
       Get-AzureCalcPrice -CPU (8..16) -RAM (20..128) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
 
-
+      .EXAMPLE
+      Get-AzureCalcData
       Get-AzureCalcPrice -Size F8 -Region australia-east -Tier standard -Type windows | ft -AutoSize
       Get-AzureCalcPrice -Size F2 -Region australia-east -Tier standard -Type windows | ft -AutoSize
       Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
