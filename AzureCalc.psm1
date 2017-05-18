@@ -199,12 +199,17 @@ function Get-AzureCalcPrice {
         foreach ($r in $Region) {
           $res.$r = $el.Prices.$r
         }
-          
-        [pscustomobject] $res
+        
+        
+        $typedRet = [pscustomobject] $res
+        $typedRet.psobject.TypeNames.Insert(0, "AzureCalc.PriceEntry")
+        $typedRet
       }
     }
     else {
-            $ret
+            $typedRet = $ret
+            $typedRet.psobject.TypeNames.Insert(0, "AzureCalc.PriceEntry")
+            $typedRet
         }
     }
 }
