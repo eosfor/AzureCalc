@@ -3,31 +3,33 @@ function Get-AWSOfferData {
     param(
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [string]
-        $Path,
+        [string]$Path,
         [switch]$Force,
-        [switch]$PassTrough
+        [switch]$PassThru
     )
     process {
-        if (Test-Path $Path -AND (! $Force.IsPresent)) {
-            $awsOffersFileURI = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/index.csv'
-            $tempFile = New-TemporaryFile
-            Write-Verbose "new temp file is $tempFile"
-        
-            Write-Verbose 'downloading offer file'
-            Invoke-WebRequest -Uri $awsOffersFileURI -OutFile $tempFile
-        
-            Write-Verbose 'reading temp file'
-            $sourceFile = [System.IO.File]::ReadAllLines($tempFile)
-        
-            Write-Verbose 'writing destination file'
-            [System.IO.File]::WriteAllLines($Path, ($sourceFile[5..($sourceFile.count)]))
-
-            Write-Verbose 'removing temp file'
-            Remove-Item -Path $tempFile
-
-            if ($PassTrough.IsPresent) {get-item $Path}
+        if (Test-Path $Path) {
+            if (! $Force.IsPresent) {
+                Throw "File exists, please use -Force to override"
+            }
         }
+        $awsOffersFileURI = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/index.csv'
+        $tempFile = New-TemporaryFile
+        Write-Verbose "new temp file is $tempFile"
+
+        Write-Verbose 'downloading offer file'
+        Invoke-WebRequest -Uri $awsOffersFileURI -OutFile $tempFile
+
+        Write-Verbose 'reading temp file'
+        $sourceFile = [System.IO.File]::ReadAllLines($tempFile)
+
+        Write-Verbose 'writing destination file'
+        [System.IO.File]::WriteAllLines($Path, ($sourceFile[5..($sourceFile.count)]))
+
+        Write-Verbose 'removing temp file'
+        Remove-Item -Path $tempFile
+
+        if ($PassThru.IsPresent) {get-item $Path}
     }
 }
 
@@ -35,7 +37,7 @@ function Import-AWSOfferDataFile {
     [CmdletBinding()]
     [Parameter(ValueFromPipeline = $true)]
     param([string]$Path)
-    
+
     process {
         Write-Verbose 'importing raw data'
         $script:rawAWSData = ConvertFrom-Csv ($sourceFile[5..($sourceFile.count)])
@@ -59,14 +61,14 @@ function Import-AWSOfferDataFile {
 function Get-AWSCalcPrice {
     <#
       .SYNOPSIS
-      This function  is used to analyze Azure Calc data extracted by the REST call 
+      This function  is used to analyze Azure Calc data extracted by the REST call
       .DESCRIPTION
       This function  is used to analyze Azure Calc data extracted by the REST call. It can then filter the data by CPU, RAM, OS Type, VM  Size, Region
-      
+
       .EXAMPLE
       Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
       Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'US East (N. Virginia)' | ft -autosize
-      
+
       .EXAMPLE
       Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
       Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'US East (N. Virginia)' | ft -autosize
@@ -87,7 +89,7 @@ function Get-AWSCalcPrice {
   #>
     [cmdletbinding()]
     param (
-        [int[]]$CPU, 
+        [int[]]$CPU,
         [int[]]$RAM,
         [string]$Type,
         [string]$termType = 'ondemand',
@@ -103,12 +105,12 @@ function Get-AWSCalcPrice {
         $sizeFilter = {param($objectSet)  $objectSet | Where-Object {$_.'Instance Type' -eq $Size} }
         $tenancyFilter = {param($objectSet)  $objectSet | Where-Object {$_.Tenancy -eq $Tenancy} }
         $termTypeFilter = { param($objectSet)  $objectSet | Where-Object {$_.TermType -eq $TermType} }
-        $regionFilter = {param($objectSet)   $regionIDX.$Region  } 
+        $regionFilter = {param($objectSet)   $regionIDX.$Region  }
     }
     process {
         $filters = @()
         if ($Region) {
-            $filters += $regionFilter 
+            $filters += $regionFilter
         }
 
         if ($termType) {
@@ -125,10 +127,10 @@ function Get-AWSCalcPrice {
             $filters += $typeFilter
         }
         if ($Size) {
-            $filters += $sizeFilter 
+            $filters += $sizeFilter
         }
         if ($Tenancy) {
-            $filters += $tenancyFilter 
+            $filters += $tenancyFilter
         }
 
         $ret = $CalcData
@@ -137,7 +139,23 @@ function Get-AWSCalcPrice {
             $ret = & $f $ret
             write-verbose "$($ret.Count)"
         }
-        
+
         $ret
     }
+}
+
+
+function readFromCSV {
+    $reader = [System.IO.File]::OpenText('data1.csv')
+    $writer = New-Object System.IO.StreamWriter 'data2.csv'
+    for (; ; ) {
+        $line = $reader.ReadLine()
+        if ($null -eq $line) {
+            break
+        }
+        $data = $line.Split(";")
+        $writer.WriteLine('{0};{1};{2}', $data[0], $data[2], $data[1])
+    }
+    $reader.Close()
+    $writer.Close()
 }
