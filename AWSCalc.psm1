@@ -1,3 +1,5 @@
+$script:awsRaw = @{}
+
 function Get-AWSOfferData {
     [CmdletBinding()]
     param(
@@ -13,48 +15,64 @@ function Get-AWSOfferData {
                 Throw "File exists, please use -Force to override"
             }
         }
-        $awsOffersFileURI = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/index.csv'
-        $tempFile = New-TemporaryFile
-        Write-Verbose "new temp file is $tempFile"
+        $baseURL = 'https://pricing.us-east-1.amazonaws.com'
+        $awsIndex = Invoke-RestMethod -Method Get -URI "$baseURL/offers/v1.0/aws/index.json"
+        $awsRegionIndex = Invoke-RestMethod -Method Get -URI "$baseURL$($awsIndex.offers.AmazonEC2.currentRegionIndexUrl)"
 
-        Write-Verbose 'downloading offer file'
-        Invoke-WebRequest -Uri $awsOffersFileURI -OutFile $tempFile
+        #create runspace factory
+        $pool = [runspacefactory]::CreateRunspacePool(1, 10)
+        $pool.open()
 
-        Write-Verbose 'reading temp file'
-        $sourceFile = [System.IO.File]::ReadAllLines($tempFile)
+        #start tasks
+        $tasks =
+        ($awsRegionIndex.regions | Get-Member -MemberType NoteProperty).Name |
+            ForEach-Object {
+                $region = $_
+                $regionUrl = $awsRegionIndex.regions.$_.currentVersionUrl -replace 'json', 'csv'
 
-        Write-Verbose 'writing destination file'
-        [System.IO.File]::WriteAllLines($Path, ($sourceFile[5..($sourceFile.count)]))
+                $p = [powershell]::Create().AddCommand('Invoke-WebRequest').Addparameter("Method", "Get").Addparameter("URI", ($baseurl + $regionUrl)).Addparameter("OutFile", (Join-Path $Path "$region.csv"))
+                $p.RunspacePool = $pool
+                $ia = $p.BeginInvoke()
+                @{p = $p; ia = $ia; path = (Join-Path $Path "$region.csv")}
+                #Invoke-WebRequest -Method Get -URI ($baseurl + $regionUrl) -OutFile (Join-Path $Path "$region.csv")
+            }
 
-        Write-Verbose 'removing temp file'
-        Remove-Item -Path $tempFile
+        #wait for completion
+        foreach ($t in $tasks) {
+            $t.p.EndInvoke($t.ia)
+            $sourceFile = [System.IO.File]::ReadAllLines($t.path)
+            [System.IO.File]::WriteAllLines($t.path, ($sourceFile[5..($sourceFile.count)]))
 
+            $t.p.Dispose()
+        }
+
+        #return HT if needed
         if ($PassThru.IsPresent) {get-item $Path}
     }
 }
 
 function Import-AWSOfferDataFile {
     [CmdletBinding()]
-    [Parameter(ValueFromPipeline = $true)]
-    param([string]$Path)
+    param(
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [ValidateScript( {Test-Path $_})]
+        [string]$Path,
+        [Parameter()]
+        [switch]$PassThru
+    )
 
     process {
-        Write-Verbose 'importing raw data'
-        $script:rawAWSData = ConvertFrom-Csv ($sourceFile[5..($sourceFile.count)])
+        Write-Verbose 'importing raw data from $path'
 
-        Write-Verbose 'building index by location'
-        $script:regionIDX = @{}
-        foreach ($row in $script:rawAWSData) {
-            if ($script:regionIDX.($row.Location)) {
-                $script:regionIDX.($row.Location).Add($row) | Out-Null
-            }
-            else {
-                $list = [System.Collections.ArrayList]::new()
-                $list.Add($row) | Out-Null
-                $script:regionIDX.($row.Location) = $list
-            }
+        foreach ($file in (Get-ChildItem $path -File)) {
+            Write-Verbose "processing $($file.fullname)"
+            $region = $file.Name -replace '.csv'
+            $dt = gc $file.fullname -ReadCount 0 | ConvertFrom-Csv | Out-DataTable
+            $script:awsRaw.$region = $dt
         }
 
+        if ($PassThru.IsPresent) {$awsRaw}
     }
 }
 
@@ -105,7 +123,7 @@ function Get-AWSCalcPrice {
         $sizeFilter = {param($objectSet)  $objectSet | Where-Object {$_.'Instance Type' -eq $Size} }
         $tenancyFilter = {param($objectSet)  $objectSet | Where-Object {$_.Tenancy -eq $Tenancy} }
         $termTypeFilter = { param($objectSet)  $objectSet | Where-Object {$_.TermType -eq $TermType} }
-        $regionFilter = {param($objectSet)   $regionIDX.$Region  }
+        $regionFilter = {param($objectSet) $Region | ForEach-Object {$script:awsRaw.$_} }
     }
     process {
         $filters = @()
