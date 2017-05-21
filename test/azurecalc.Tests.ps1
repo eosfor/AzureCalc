@@ -3,8 +3,8 @@ $ModuleManifestPath = "$PSScriptRoot\..\$ModuleManifestName"
 
 Import-Module $ModuleManifestPath -Verbose -Force
 
-$outPath = 'E:\temp\awsoffers1.csv'
-if (Test-Path $outPath) {del $outPath}
+$outPath = 'E:\temp\awsregions'
+if (! (Test-Path $outPath)) {mkdir $outPath}
 
 Describe 'Module Manifest Tests' {
     It 'Passes Test-ModuleManifest' {
@@ -14,17 +14,15 @@ Describe 'Module Manifest Tests' {
 }
 
 Describe 'Module  Tests' {
-    It 'Passes Get-AWSOfferData to a new file' {
-        $res = Get-AWSOfferData -Path $outPath -PassThru
-        $res | Should not BeNullOrEmpty
+    It 'Passes Get-AWSOfferData to a new folder (does not exist)' {
+        { Get-AWSOfferData -Path $outPath } | Should Throw
     }
-    It 'Passes Get-AWSOfferData to an existing file' {
-        { Get-AWSOfferData -Path $outPath -PassThru } | Should Throw
-    }
-    It 'Passes Get-AWSOfferData to an existing file forcibly override' {
-        { Get-AWSOfferData -Path $outPath -Force } | Should NOT Throw
+    It 'Passes Get-AWSOfferData to an existing folder with files' {
+        $p = Get-AWSOfferData -Path $outPath -Force -PassThru
+        (dir $p).count | Should NOT BeNullorEmpty
     }
 
     It "Passes Import-AWSOfferDataFile" {
+        { Import-AWSOfferDataFile -Path $outPath -PassThru } | should NOT Throw
     }
 }
