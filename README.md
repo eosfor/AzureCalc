@@ -24,7 +24,7 @@ Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier stand
 
 I've added some AWS related data. To use it:
 
-download AWS calc  data 9for EC2 only) by issuing
+download AWS calc  data (for EC2 only) by issuing
 ```powershell code
 Get-AWSOfferData -Path c:\temp\awsdata -Force -PassThru
 ```
