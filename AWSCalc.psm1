@@ -101,7 +101,7 @@ function Get-AWSCalcPrice {
       This function  is used to analyze Azure Calc data extracted by the REST call. It can then filter the data by CPU, RAM, OS Type, VM  Size, Region
 
       .EXAMPLE
-      Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
+      Get-AWSOfferData -Path $outPath -Force -PassThru
       Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1'
       Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1','us-east-2' | sort PricePerUnit
   #>

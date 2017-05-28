@@ -21,3 +21,19 @@ Get-AzureCalcPrice -Size F8 -Region australia-east -Tier standard -Type windows 
 Get-AzureCalcPrice -Size F2 -Region australia-east -Tier standard -Type windows | ft -AutoSize
 Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
 ```
+
+I've added some AWS related data. To use it:
+
+download AWS calc  data 9for EC2 only) by issuing
+```powershell code
+Get-AWSOfferData -Path c:\temp\awsdata -Force -PassThru
+```
+
+next step is to import that data into global variable. you can also use -PassThru parameter to save the reference to a variable
+```powershell code
+Import-AWSOfferDataFile -Path c:\temp\awsdata
+```
+and now you can search
+```powershell code
+Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1'
+```
