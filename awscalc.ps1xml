@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Configuration>
+    <ViewDefinitions>
+        <View>
+            <Name>AWSCalc.DataRow</Name>
+            <ViewSelectedBy>
+                <TypeName>AWSCalc.DataRow</TypeName>
+            </ViewSelectedBy>
+            <TableControl>
+                <TableHeaders>
+                    <TableColumnHeader>
+                        <label>Instance type</label>
+                        <Width>16</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>vCPU</label>
+                        <Width>2</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>Memory</label>
+                        <Width>9</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>PricePerUnit</label>
+                        <Width>12</Width>
+                    </TableColumnHeader>
+                </TableHeaders>
+                <TableRowEntries>
+                    <TableRowEntry>
+                        <TableColumnItems>
+                            <TableColumnItem>
+                                <PropertyName>Instance type</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>vCPU</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>Memory</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>PricePerUnit</PropertyName>
+                            </TableColumnItem>
+                        </TableColumnItems>
+                    </TableRowEntry>
+                </TableRowEntries>
+            </TableControl>
+        </View>
+    </ViewDefinitions>
+</Configuration>
