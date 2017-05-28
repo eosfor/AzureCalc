@@ -1,5 +1,9 @@
 $script:awsRaw = @{}
 
+function Get-AWSCalcRegion($AzureCalcData = $script:awsRaw) {
+    $AzureCalcData.Keys
+}
+
 function Get-AWSOfferData {
     [CmdletBinding()]
     param(
@@ -65,10 +69,19 @@ function Import-AWSOfferDataFile {
     process {
         Write-Verbose 'importing raw data from $path'
 
+        $fileCount = (dir $Path -File).Count
+        $i = 0
+
         foreach ($file in (Get-ChildItem $path -File)) {
-            Write-Verbose "processing $($file.fullname)"
+            Write-Progress -Activity "Importing $($file.fullname)" -PercentComplete ((++$i/$filecount)*100)
             $region = $file.Name -replace '.csv'
-            $dt = gc $file.fullname -ReadCount 0 | ConvertFrom-Csv | Out-DataTable
+            #$dt = Get-Content $file.fullname -ReadCount 0 | ConvertFrom-Csv | Out-DataTable
+            $gpa = [GenericParsing.GenericParserAdapter]::new($file.fullname)
+            $gpa.FirstRowHasHeader = $true
+            $dt = $gpa.GetDataTable()
+            foreach ($row in $dt) {
+                $row.psobject.TypeNames.Insert(0, "AWSCalc.DataRow")
+            }
             $script:awsRaw.$region = $dt
         }
 
@@ -85,7 +98,7 @@ function Get-AWSCalcPrice {
 
       .EXAMPLE
       Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
-      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'US East (N. Virginia)' | ft -autosize
+      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1' | ft -autosize
 
       .EXAMPLE
       Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
@@ -160,20 +173,4 @@ function Get-AWSCalcPrice {
 
         $ret
     }
-}
-
-
-function readFromCSV {
-    $reader = [System.IO.File]::OpenText('data1.csv')
-    $writer = New-Object System.IO.StreamWriter 'data2.csv'
-    for (; ; ) {
-        $line = $reader.ReadLine()
-        if ($null -eq $line) {
-            break
-        }
-        $data = $line.Split(";")
-        $writer.WriteLine('{0};{1};{2}', $data[0], $data[2], $data[1])
-    }
-    $reader.Close()
-    $writer.Close()
 }
