@@ -75,7 +75,6 @@ function Import-AWSOfferDataFile {
         foreach ($file in (Get-ChildItem $path -File)) {
             Write-Progress -Activity "Importing $($file.fullname)" -PercentComplete ((++$i/$filecount)*100)
             $region = $file.Name -replace '.csv'
-            #$dt = Get-Content $file.fullname -ReadCount 0 | ConvertFrom-Csv | Out-DataTable
             $gpa = [GenericParsing.GenericParserAdapter]::new($file.fullname)
             $gpa.FirstRowHasHeader = $true
             $dt = $gpa.GetDataTable()
@@ -103,35 +102,34 @@ function Get-AWSCalcPrice {
 
       .EXAMPLE
       Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
-      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1' | ft -autosize
-
-      .EXAMPLE
-      Get-AWSOfferData -path e:\temp\awsdata1.csv -Verbose
-      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'US East (N. Virginia)' | ft -autosize
-
-      .EXAMPLE
-      Get-AzureCalcData
-      Get-AzureCalcPrice -Region australia-east -Tier standard -Type windows | ft -AutoSize
-      Get-AzureCalcPrice -CPU (8..16) -Region australia-east -Tier standard -Type windows | ft -AutoSize
-      Get-AzureCalcPrice -CPU (8..16) -RAM (20..128) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
-
-      .EXAMPLE
-      Get-AzureCalcData
-      Get-AzureCalcPrice -Size F8 -Region australia-east -Tier standard -Type windows | ft -AutoSize
-      Get-AzureCalcPrice -Size F2 -Region australia-east -Tier standard -Type windows | ft -AutoSize
-      Get-AzureCalcPrice -CPU (8..16) -RAM (20..40) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
-      Get-AzureCalcPrice -CPU (2..16) -RAM (4..20) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
-      Get-AzureCalcPrice -CPU (4..8) -RAM (4..32) -Region australia-east -Tier standard -Type windows | sort  australia-east | ft -AutoSize
+      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1'
+      Get-AWSCalcPrice -CPU  8 -RAM  (8..32) -Region 'us-east-1','us-east-2' | sort PricePerUnit
   #>
     [cmdletbinding()]
     param (
+        [Parameter()]
         [int[]]$CPU,
+
+        [Parameter()]
         [int[]]$RAM,
+
+        [Parameter()]
         [string]$Type,
+
+        [Parameter()]
         [string]$termType = 'ondemand',
+
+        [Parameter()]
         [string]$Size,
+
+        [Parameter()]
+        [ValidateScript({if($script:awsRaw.count){$_ -in (Get-AWSCalcRegion)} else {throw "Please import AWS calc data"}})]
         [string[]]$Region,
+
+        [Parameter()]
         [string[]]$Tenancy = "Shared",
+
+        [Parameter()]
         $CalcData = $script:rawAWSData
     )
     begin {
