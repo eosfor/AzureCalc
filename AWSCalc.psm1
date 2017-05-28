@@ -79,9 +79,14 @@ function Import-AWSOfferDataFile {
             $gpa = [GenericParsing.GenericParserAdapter]::new($file.fullname)
             $gpa.FirstRowHasHeader = $true
             $dt = $gpa.GetDataTable()
-            foreach ($row in $dt) {
-                $row.psobject.TypeNames.Insert(0, "AWSCalc.DataRow")
-            }
+
+            # for now i leave the DataRow type as is to speedup import and set datarow type as enabler in the format file
+
+            # foreach ($row in $dt) {
+            #     $row.psobject.TypeNames.Insert(0, "AWSCalc.DataRow")
+            # }
+            #$dt.foreach({$_.psobject.TypeNames.Insert(0, "AWSCalc.DataRow")})
+
             $script:awsRaw.$region = $dt
         }
 
