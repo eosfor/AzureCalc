@@ -22,6 +22,22 @@
                         <Width>9</Width>
                     </TableColumnHeader>
                     <TableColumnHeader>
+                        <label>Operating System</label>
+                        <Width>16</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>Storage</label>
+                        <Width>16</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>TermType</label>
+                        <Width>12</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <label>Location</label>
+                        <Width>25</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
                         <label>PricePerUnit</label>
                         <Width>12</Width>
                     </TableColumnHeader>
@@ -37,6 +53,18 @@
                             </TableColumnItem>
                             <TableColumnItem>
                                 <PropertyName>Memory</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>Operating System</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>Storage</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>TermType</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <PropertyName>Location</PropertyName>
                             </TableColumnItem>
                             <TableColumnItem>
                                 <PropertyName>PricePerUnit</PropertyName>
